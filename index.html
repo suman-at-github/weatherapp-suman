@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App with Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #71b7e6, #9b59b6);
+            min-height: 100vh;
+        }
+        .chat-container {
+            transition: all 0.3s ease-in-out;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .chat-container.open {
+            max-height: 500px;
+        }
+        .chat-messages {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #4b6cb7 #f1f5f9;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #4b6cb7;
+            border-radius: 10px;
+        }
+        .chat-message {
+            max-width: 70%;
+            margin: 10px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            animation: slideIn 0.3s ease;
+        }
+        .user-message {
+            background: #4b6cb7;
+            color: white;
+            margin-left: auto;
+        }
+        .ai-message {
+            background: #f1f5f9;
+            color: #333;
+        }
+        .typing-indicator {
+            display: none;
+            max-width: 70%;
+            margin: 10px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            background: #f1f5f9;
+            color: #333;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #666;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: typing 0.8s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @media (max-width: 600px) {
+            .weather-card {
+                padding: 1rem;
+            }
+            .weather-card h1 {
+                font-size: 1.5rem;
+            }
+            .weather-emoji {
+                font-size: 2.5rem;
+            }
+            .chat-container.open {
+                max-height: 400px;
+            }
+            .chat-messages {
+                max-height: 200px;
+            }
+            .chat-message, .typing-indicator {
+                max-width: 80%;
+            }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+    <div class="container bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
+        <div class="weather-card text-center">
+            <h1 id="location" class="text-3xl font-bold text-gray-800 mb-4">Getting location...</h1>
+            <div id="weather-emoji" class="weather-emoji text-5xl my-6">⏳</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="info-item bg-gray-100 p-4 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold text-gray-600">Temperature</h3>
+                    <p id="temperature" class="text-2xl font-bold text-gray-800">--°C</p>
+                </div>
+                <div class="info-item bg-gray-100 p-4 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold text-gray-600">Humidity</h3>
+                    <p id="humidity" class="text-2xl font-bold text-gray-800">--%</p>
+                </div>
+                <div class="info-item bg-gray-100 p-4 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold text-gray-600">Wind Speed</h3>
+                    <p id="wind-speed" class="text-2xl font-bold text-gray-800">-- m/s</p>
+                </div>
+                <div class="info-item bg-gray-100 p-4 rounded-lg shadow">
+                    <h3 class="text-lg font-semibold text-gray-600">Weather</h3>
+                    <p id="description" class="text-2xl font-bold text-gray-800">--</p>
+                </div>
+            </div>
+            <div id="error" class="text-red-500 text-lg mt-4 hidden"></div>
+            <div id="loading" class="text-gray-600 text-lg mt-4 hidden">Loading weather data...</div>
+        </div>
+        <button id="chat-toggle" class="mt-6 bg-blue-500 text-white px-6 py-3 rounded-full hover:bg-blue-600 transition flex items-center justify-center mx-auto">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+            </svg>
+            Chat with Weather Bot
+        </button>
+        <div id="chat-container" class="chat-container mt-4 bg-gray-50 rounded-lg p-4">
+            <div id="chat-messages" class="chat-messages flex flex-col">
+                <div id="typing-indicator" class="typing-indicator hidden">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+            <div class="flex mt-4">
+                <input id="chat-input" type="text" class="flex-1 p-2 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ask about the weather...">
+                <button id="chat-send" class="bg-blue-500 text-white px-4 rounded-r-lg hover:bg-blue-600 transition">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const weatherApiKey = '35bccbb0875e0dc531d7e9b259534816'; // Replace with your OpenWeatherMap API key
+        const geminiApiKey = 'AIzaSyBF9mIfxmy_7uA1noEcS5FoZDZTaW580ag'; // Replace with your Gemini API key
+        const weatherEmoji = document.getElementById('weather-emoji');
+        const locationElement = document.getElementById('location');
+        const temperatureElement = document.getElementById('temperature');
+        const humidityElement = document.getElementById('humidity');
+        const windSpeedElement = document.getElementById('wind-speed');
+        const descriptionElement = document.getElementById('description');
+        const errorElement = document.getElementById('error');
+        const loadingElement = document.getElementById('loading');
+        const chatToggle = document.getElementById('chat-toggle');
+        const chatContainer = document.getElementById('chat-container');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const chatSend = document.getElementById('chat-send');
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        // Weather condition to emoji mapping
+        const weatherEmojis = {
+            'Clear': '☀️',
+            'Clouds': '☁️',
+            'Rain': '🌧️',
+            'Drizzle': '🌦️',
+            'Thunderstorm': '⛈️',
+            'Snow': '❄️',
+            'Mist': '🌫️',
+            'Fog': '🌫️'
+        };
+
+        let currentWeather = {
+            temperature: '--°C',
+            location: 'Unknown',
+            description: '--',
+            humidity: '--%',
+            windSpeed: '-- m/s'
+        };
+
+        // Show loading state
+        function showLoading() {
+            loadingElement.classList.remove('hidden');
+            errorElement.classList.add('hidden');
+        }
+
+        // Show error message
+        function showError(message) {
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+            loadingElement.classList.add('hidden');
+        }
+
+        // Get weather data
+        async function getWeather(lat, lon) {
+            showLoading();
+            try {
+                const response = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${weatherApiKey}&units=metric`
+                );
+                if (!response.ok) {
+                    throw new Error('Failed to fetch weather data');
+                }
+                const data = await response.json();
+                
+                // Update current weather data
+                currentWeather = {
+                    temperature: `${Math.round(data.main.temp)}°C`,
+                    location: data.name,
+                    description: data.weather[0].description,
+                    humidity: `${data.main.humidity}%`,
+                    windSpeed: `${data.wind.speed} m/s`
+                };
+
+                // Update UI
+                locationElement.textContent = currentWeather.location;
+                temperatureElement.textContent = currentWeather.temperature;
+                humidityElement.textContent = currentWeather.humidity;
+                windSpeedElement.textContent = currentWeather.windSpeed;
+                descriptionElement.textContent = currentWeather.description;
+                
+                // Set weather emoji
+                const weatherMain = data.weather[0].main;
+                weatherEmoji.textContent = weatherEmojis[weatherMain] || '🌈';
+                
+                loadingElement.classList.add('hidden');
+            } catch (error) {
+                showError('Error fetching weather data. Please try again.');
+            }
+        }
+
+        // Get user location
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        getWeather(latitude, longitude);
+                    },
+                    () => {
+                        showError('Unable to get location. Please allow location access.');
+                    }
+                );
+            } else {
+                showError('Geolocation is not supported by your browser.');
+            }
+        }
+
+        // Toggle chat window
+        chatToggle.addEventListener('click', () => {
+            chatContainer.classList.toggle('open');
+            chatToggle.innerHTML = chatContainer.classList.contains('open') 
+                ? `<svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg> Close Chat`
+                : `<svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg> Chat with Weather Bot`;
+        });
+
+        // Send chat message and call Gemini API
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            const userMessage = document.createElement('div');
+            userMessage.className = 'chat-message user-message';
+            userMessage.textContent = message;
+            chatMessages.appendChild(userMessage);
+            userMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+            // Show typing indicator
+            typingIndicator.classList.remove('hidden');
+            typingIndicator.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+            try {
+                const weatherDetails = `Temperature: ${currentWeather.temperature}, Location: ${currentWeather.location}, Description: ${currentWeather.description}, Humidity: ${currentWeather.humidity}, Wind Speed: ${currentWeather.windSpeed}`;
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: `Based on the current temperature ${weatherDetails} ${message}`
+                                }]
+                            }]
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch Gemini API response');
+                }
+
+                const data = await response.json();
+                const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not process your request.';
+
+                // Hide typing indicator
+                typingIndicator.classList.add('hidden');
+
+                // Add AI response
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'chat-message ai-message';
+                aiMessage.textContent = aiResponse;
+                chatMessages.appendChild(aiMessage);
+                aiMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            } catch (error) {
+                // Hide typing indicator
+                typingIndicator.classList.add('hidden');
+
+                // Show error message
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'chat-message ai-message';
+                aiMessage.textContent = 'Error fetching AI response. Please try again.';
+                chatMessages.appendChild(aiMessage);
+                aiMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+
+            chatInput.value = '';
+        }
+
+        // Handle send button click
+        chatSend.addEventListener('click', sendMessage);
+
+        // Handle Enter key press
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Initialize
+        getLocation();
+    </script>
+</body>
+</html>
