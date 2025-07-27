@@ -23,7 +23,7 @@ A sleek, responsive weather application built using **HTML**, **Tailwind CSS**, 
 
 ## 📸 Preview
 
-![App Screenshot](screenshot.png) <!-- Optional: Replace with actual screenshot if available -->
+![App Screenshot]("C:\Users\Suman Ghosh\OneDrive\图片\Screenshots\Screenshot 2025-07-27 204029.png") <!-- Optional: Replace with actual screenshot if available -->
 
 ---
 
